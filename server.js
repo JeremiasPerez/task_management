@@ -3,26 +3,22 @@
 import express from "express";
 import cors from 'cors'
 
+import { PrismaClient } from '@prisma/client'
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+
+const adapter = new PrismaBetterSqlite3({
+   url: process.env.DATABASE_URL || 'file:./datos.db',
+})
+
+const prisma = new PrismaClient({ adapter })
+
+
 const app = express();
 app.use(express.json());
 app.use(cors())
 
-
-const lista = [
-    {
-        id: 1,
-        nombre: 'hacer API rest',
-        descripcion: 'hacer la api rest que nos ha pedido jere',
-        categoria: 'backend',
-        prioridad: 3,
-        estado: 'in progress',
-        responsable: 'jere',
-        deadline: Date.parse('2026-02-26')
-    }
-]
-
-app.get("/api/tareas", (req, res) => {
-    console.log('received')
+app.get("/api/tareas", async (req, res) => {
+   const lista = await prisma.tarea.findMany({})
    res.json(lista.map(t => {
         return {id: t.id, 
             nombre: t.nombre, 
@@ -33,9 +29,13 @@ app.get("/api/tareas", (req, res) => {
     }))
 })
 
-app.get("/api/tareas/:id", (req, res) => {
-    const id = Number(req.params.id)
-    const tarea = lista.find((t) => t.id === id)
+app.get("/api/tareas/:id", async (req, res) => {
+    const idPar = Number(req.params.id)
+    const tarea = await prisma.tarea.findUnique({
+        where: {
+            id: idPar
+        }
+    })
     if (tarea == null)
         res.status(404).json({error: 'No se ha encontrado la tarea'})
 
@@ -45,14 +45,12 @@ app.get("/api/tareas/:id", (req, res) => {
     res.json(newT)
 })
 
-app.post('/api/tareas', (req, res) => {
+app.post('/api/tareas', async (req, res) => {
     const t = req.body
     if (t?.nombre == null)
         return res.status(400).json({error: 'El nombre es obligatorio'})
 
-    const idNuevo = lista.reduce((m, t) => t.id > m ? t.id : m, 1) + 1
     const nueva = {
-        id: idNuevo,
         nombre: t.nombre,
         estado: t.estado || 'to do',
         prioridad: t.prioridad || 1,
@@ -61,35 +59,35 @@ app.post('/api/tareas', (req, res) => {
         descripcion: t.descripcion,
         categoria: t.categoria
     }
-    lista.push(nueva)
-    res.status(201).json(nueva)
+    const t2 = await prisma.tarea.create({
+        data: nueva
+    })
+    res.status(201).json(t2)
 })
 
-app.delete('/api/tareas/:id', (req, res) => {
+app.delete('/api/tareas/:id', async (req, res) => {
     const id = Number(req.params.id)
-    const pos = lista.findIndex(t => t.id === id)
-    if (pos == -1) 
+
+    const t = await prisma.tarea.delete({
+        where: {
+            id: id
+        }
+    })
+    if (t == null) 
         return res.status(404).json({error: 'La tarea no se ha encontrado'})
 
-    lista.splice(pos,1)
     res.status(200).send()
 })
 
-app.patch('/api/tareas/:id', (req, res) => {
+app.patch('/api/tareas/:id', async (req, res) => {
     const id = Number(req.params.id)
-    const t = lista.find(t => t.id === id)
+
+    const t = await prisma.tarea.update({
+        where: {id: id},
+        data: req.body
+    })
     if (t == null)
         return res.status(404).json({error: 'No se ha encontrado'})
-
-    const n = req.body
-    if (n.nombre != null) t.nombre = n.nombre
-    if (n.descripcion != null) t.descripcion = n.descripcion
-    if (n.deadline != null) t.deadline = n.deadline
-    if (n.responsable != null) t.responsable = n.responsable
-    if (n.categoria != null) t.categoria = n.categoria
-    if (n.estado != null) t.estado = n.estado
-    if (n.prioridad != null) t.prioridad = n.prioridad
-
     res.status(200).json(t)
 })
 
