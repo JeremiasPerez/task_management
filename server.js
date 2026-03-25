@@ -22,7 +22,11 @@ app.use(express.json());
 app.use(cors())
 
 app.get("/api/tareas", authMiddleware, async (req, res) => {
-   const lista = await prisma.tarea.findMany({})
+   const lista = await prisma.tarea.findMany({
+    where: {
+        idUsuario: req.user.id
+    }
+   })
    res.json(lista.map(t => {
         return {id: t.id, 
             nombre: t.nombre, 
@@ -58,7 +62,7 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
         nombre: t.nombre,
         estado: t.estado || 'to do',
         prioridad: t.prioridad || 1,
-        responsable: t.responsable,
+        idUsuario: req.user.id,
         deadline: t.deadline,
         descripcion: t.descripcion,
         categoria: t.categoria

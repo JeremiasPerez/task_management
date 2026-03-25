@@ -17,13 +17,15 @@ model Tarea {
   descripcion String?
   estado String?
   categoria String?
-  responsable String?
   deadline DateTime?
   prioridad Int?
+  idUsuario Int
+  usuario Usuario @relation(fields: [idUsuario], references: [id])
 }
 
 model Usuario {
   id Int @id @default(autoincrement())
   email String @unique
   password String
+  tareas Tarea[]
 }
