@@ -21,3 +21,9 @@ model Tarea {
   deadline DateTime?
   prioridad Int?
 }
+
+model Usuario {
+  id Int @id @default(autoincrement())
+  email String @unique
+  password String
+}

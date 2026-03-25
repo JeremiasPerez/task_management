@@ -91,5 +91,43 @@ app.patch('/api/tareas/:id', async (req, res) => {
     res.status(200).json(t)
 })
 
+app.post('/api/auth/login', async (req, res) => {
+    const u = await prisma.usuario.findUnique({
+        where: {
+            email: req.body.email
+        }
+    })
+    if (u == null)
+        return res.status(404).json({error: 'Usuario desconocido'})
+
+    if (u.password != req.body.password)
+        return res.status(401).json({error: 'Credenciales incorrectas'})
+
+    return res.json({ok: true})
+
+})
+
+app.post('/api/auth/registro', async (req, res) => {
+    
+    const user = await prisma.usuario.findUnique({
+        where: {
+            email: req.body.email
+        }
+    })
+
+    if (user != null)
+        return res.status(400).json({error: 'Ya existe el usuario'})
+    
+    const u = await prisma.usuario.create({
+        data: {
+            email: req.body.email,
+            password: req.body.password
+        }
+    })
+
+    return res.json({ok: true})
+
+})
+
 
 app.listen(3000);
