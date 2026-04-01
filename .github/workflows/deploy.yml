@@ -1,0 +1,60 @@
+name: Deploy backend with Docker
+
+on:
+  push:
+    branches: ["main"] # al hacer un push a main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # puede leer el contenido del repositorio
+      packages: write # necesario para subir la imagen a GHCR
+
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Login en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Usuario a minusculas
+        id: vars
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Crear imagen Docker
+        run: docker build -t ghcr.io/${{ env.OWNER_LC }}/task_management:latest .
+
+      - name: Publicar imagen en GHCR
+        run: docker push ghcr.io/${{ env.OWNER_LC }}/task_management:latest 
+
+      - name: Configurar conexion SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DROPLET_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Descargar imagen
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} \
+          "cd /opt/backend && docker compose pull"
+
+      - name: Ejecutar migraciones de Prisma
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} \
+          "cd /opt/backend && docker compose run --rm -T api npx prisma migrate deploy"
+
+      - name: Arrancar backend
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} \
+          "cd /opt/backend && docker compose up -d api"
+
+      - name: Comprobar estado del backend
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} \
+          "docker ps && docker logs --tail=20"
