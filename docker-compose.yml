@@ -1,0 +1,17 @@
+services:
+  api:
+    image: ghcr.io/jeremiasperez/task_management:latest
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+    environment:
+      DATABASE_URL: file:/app/data/datos.db
+      NODE_ENV: production
+
+    volumes:
+      - sqlite_data:/app/data
+
+volumes:
+  sqlite_data:
