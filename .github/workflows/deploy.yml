@@ -57,4 +57,4 @@ jobs:
       - name: Comprobar estado del backend
         run: |
           ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} \
-          "docker ps && docker logs --tail=20"
+          "docker ps"
